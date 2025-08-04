@@ -1,0 +1,16 @@
+fastapi[all]
+uvicorn
+python-dotenv
+passlib[bcrypt]
+sqlalchemy
+pydantic
+beautifulsoup4
+bs4
+trafilatura
+markdownify
+langdetect
+sentence_splitter
+python-multipart
+requests
+pytest
+html5lib
