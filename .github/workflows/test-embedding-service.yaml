@@ -32,6 +32,6 @@ jobs:
       env:
         PYTHONPATH: .
       run: |
-        source .venv/bin/activate
         cd apps-microservices/embedding-service
+        source .venv/bin/activate
         pytest tests/ --maxfail=3 --disable-warnings -v
