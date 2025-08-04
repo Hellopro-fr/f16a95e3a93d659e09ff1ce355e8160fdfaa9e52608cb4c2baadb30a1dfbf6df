@@ -9,7 +9,7 @@ RUN chmod +x run.sh
 
 RUN ./init.sh
 
-EXPOSE 8502
+EXPOSE 8500
 
 
 CMD ["./run.sh"]
