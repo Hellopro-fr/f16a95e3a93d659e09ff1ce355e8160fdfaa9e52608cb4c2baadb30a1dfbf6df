@@ -105,3 +105,4 @@ override.tf.json
 local/*
 
 *.txt
+!requirements.txt
