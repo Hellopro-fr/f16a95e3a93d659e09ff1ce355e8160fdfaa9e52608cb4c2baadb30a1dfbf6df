@@ -5,7 +5,7 @@ name: Test du service d'Embedding
 
 on:
   push:
-    branches: [ "main" , "features/embeddings" ]
+    branches: [ "main" , "features/embedding" ]
   pull_request:
     branches: [ "main" , "develop" ]
 
