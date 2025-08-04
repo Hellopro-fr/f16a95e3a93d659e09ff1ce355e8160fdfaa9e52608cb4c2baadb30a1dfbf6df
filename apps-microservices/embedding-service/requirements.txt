@@ -1,0 +1,7 @@
+fastapi[all]
+uvicorn
+requests
+torch
+pytest
+sentence-transformers 
+langchain_text_splitters
