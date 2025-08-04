@@ -1,4 +1,5 @@
 import logging
+import os
 from fastapi import APIRouter, FastAPI, Request, status
 from fastapi.openapi.utils import get_openapi
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,6 +11,7 @@ description = """
 API d'embedding [RAG Hellopro] 🚀
 """
 
+os.makedirs(f'{settings.DOCUMENT_ROOT}/logs', exist_ok=True)
 
 app = FastAPI()
 
@@ -27,7 +29,7 @@ app.add_middleware(
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
-    filename="logs/app.log",
+    filename=f"{settings.DOCUMENT_ROOT}/logs/app.log",
     filemode="a"
 )
 
