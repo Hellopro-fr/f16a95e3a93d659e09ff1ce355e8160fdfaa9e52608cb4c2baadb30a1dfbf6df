@@ -17,6 +17,8 @@ from langdetect import detect
 from sentence_splitter import SentenceSplitter
 from collections import Counter
 
+from app.schemas.cleaner.cleaner import BaseCleanerReponse, ReponseHtml, BaseCleaner
+
 from lxml.etree import tostring, SubElement
 
 from app.core.credentials import settings
@@ -47,7 +49,7 @@ logger.addHandler(file_handler)
 logger.propagate = False
 
 class TrafilaturaHp:
-    def __init__(self, info: list[dict] = [], **kwargs):
+    def __init__(self, info: list[BaseCleaner] = [], **kwargs):
         object.__setattr__(self, '_initializing', True)
         object.__setattr__(self, '_trafilatura', trafilatura)
         object.__setattr__(self, '_bs', BeautifulSoup)
@@ -71,9 +73,6 @@ class TrafilaturaHp:
         os.makedirs(f"{settings.DOCUMENT_ROOT}{object.__getattribute__(self, 'OUTPUT_DIR')}", exist_ok=True)
 
         object.__setattr__(self, 'sizes', [10, 25, 50, 100, 150, 200, 300, 500, 750, 1000])
-
-        object.__setattr__(self, "fetch", False)
-        object.__setattr__(self, "w_html", False)
 
         object.__setattr__(self, '_initializing', False)
 
@@ -120,46 +119,41 @@ class TrafilaturaHp:
         "content": "content",
     }
     """
-    def extract(self, keys: dict = {}) -> dict:
-        result = []
+    def extract(self, keys: dict = {}) -> List[BaseCleanerReponse | ReponseHtml]:
+        response_objects: List[BaseCleanerReponse | ReponseHtml] = []
         html = []
         for item in self.info:
             url = getattr(item, keys.get('url') or 'url', None)
             content = getattr(item, keys.get('content') or 'content', None)
-            if self.fetch:
-                content = self._trafilatura.fetch_url(url, no_ssl=True)
-            if self.w_html:
-                html.append({ "url": url, "contenu": content })
+
+            fetch_content = getattr(item, keys.get('fetch') or 'fetch', False)
+
+            if fetch_content:
+                content_fetch = self._trafilatura.fetch_url(url, no_ssl=True)
+
+                if content_fetch:
+                    content = content_fetch
+
             res = self.extract_content(url, content)
+
+            if fetch_content:
+                response_objects.append(
+                    ReponseHtml(url=url, content=self._normalize_whitespace(res), html=content or "")
+                )
+            else:
+                response_objects.append(
+                    BaseCleanerReponse(url=url, content=self._normalize_whitespace(res))
+                )
             if not res:
-                result.append({ "url": url, "contenu": "" })
+                response_objects.append(
+                    BaseCleanerReponse(url=url, content="")
+                )
                 continue
-            result.append({ "url": url, "contenu": self._normalize_whitespace(res) })
 
+        result = [obj.model_dump() for obj in response_objects]
         self.save_results_to_json(results=result, output_path=Path(self.output))
-        if self.w_csv and result:
-            
-            headers = ["url", "content"]
-            results_for_csv = [
-                {"url": item["url"], "content": item.get("contenu", "").replace('\n', ' ')}
-                for item in result
-            ]
-            Path(self.output_csv).parent.mkdir(parents=True, exist_ok=True)
-            with open(Path(f"{self.output_csv}"), "w", encoding="utf-8", newline="") as f_csv:
-                writer = csv.DictWriter(f_csv, fieldnames=headers)
-                writer.writeheader()
-                writer.writerows(results_for_csv)
 
-        if self.w_html:
-            return {
-                "result": result,
-                "output": self.output,
-                "html": html
-            }
-        return {
-            "result": result,
-            "output": self.output
-        }
+        return response_objects
     
     def extract_content(self, url, content) -> str:
         if not content:
