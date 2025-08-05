@@ -17,7 +17,7 @@ from langdetect import detect
 from sentence_splitter import SentenceSplitter
 from collections import Counter
 
-from app.schemas.cleaner.cleaner import BaseCleanerReponse, ReponseHtml, BaseCleaner
+from app.schemas.cleaner.cleaner import BaseTrafilaturaReponse, TrafilaturaReponseHtml, BaseTrafilatura
 
 from lxml.etree import tostring, SubElement
 
@@ -49,7 +49,7 @@ logger.addHandler(file_handler)
 logger.propagate = False
 
 class TrafilaturaHp:
-    def __init__(self, info: list[BaseCleaner] = [], **kwargs):
+    def __init__(self, info: list[BaseTrafilatura] = [], **kwargs):
         object.__setattr__(self, '_initializing', True)
         object.__setattr__(self, '_trafilatura', trafilatura)
         object.__setattr__(self, '_bs', BeautifulSoup)
@@ -119,8 +119,8 @@ class TrafilaturaHp:
         "content": "content",
     }
     """
-    def extract(self, keys: dict = {}) -> List[BaseCleanerReponse | ReponseHtml]:
-        response_objects: List[BaseCleanerReponse | ReponseHtml] = []
+    def extract(self, keys: dict = {}) -> List[BaseTrafilaturaReponse | TrafilaturaReponseHtml]:
+        response_objects: List[BaseTrafilaturaReponse | TrafilaturaReponseHtml] = []
         html = []
         for item in self.info:
             url = getattr(item, keys.get('url') or 'url', None)
@@ -138,15 +138,15 @@ class TrafilaturaHp:
 
             if fetch_content:
                 response_objects.append(
-                    ReponseHtml(url=url, content=self._normalize_whitespace(res), html=content or "")
+                    TrafilaturaReponseHtml(url=url, content=self._normalize_whitespace(res), html=content or "")
                 )
             else:
                 response_objects.append(
-                    BaseCleanerReponse(url=url, content=self._normalize_whitespace(res))
+                    BaseTrafilaturaReponse(url=url, content=self._normalize_whitespace(res))
                 )
             if not res:
                 response_objects.append(
-                    BaseCleanerReponse(url=url, content="")
+                    BaseTrafilaturaReponse(url=url, content="")
                 )
                 continue
 
