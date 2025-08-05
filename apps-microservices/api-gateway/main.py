@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import Response
-from app.core.settings import settings
+from app.core.settings import settings, SERVICE_MAP
 import httpx
 
 app = FastAPI(
@@ -11,12 +11,6 @@ app = FastAPI(
     redoc_url=None,
     openapi_url=None
 )
-
-# Map routes to microservices
-SERVICE_MAP = {
-    "/cleaner-service": settings.CLEANER,
-    "/scraping-service": settings.SCRAPING
-}
 
 # Proxy requests to backend services
 @app.api_route("/{service}/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"], include_in_schema=False)
