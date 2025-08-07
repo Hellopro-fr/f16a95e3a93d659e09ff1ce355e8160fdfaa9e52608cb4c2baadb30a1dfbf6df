@@ -33,7 +33,10 @@ print(f"📚 Accédez à l'interface de test Swagger UI ici : {public_url}/docs"
 print("="*60)
 
 # Garde la cellule en exécution pour maintenir le serveur et le tunnel actifs
-try:
-    await task
-except asyncio.CancelledError:
-    print("Serveur arrêté.")
+async def main():
+    try:
+        await task
+    except asyncio.CancelledError:
+        print("Serveur arrêté.")
+
+asyncio.run(main())

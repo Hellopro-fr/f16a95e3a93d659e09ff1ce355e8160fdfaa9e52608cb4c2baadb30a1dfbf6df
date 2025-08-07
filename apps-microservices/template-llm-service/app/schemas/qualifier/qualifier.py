@@ -1,4 +1,3 @@
-# Schéma d'entrée pour la qualification
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 

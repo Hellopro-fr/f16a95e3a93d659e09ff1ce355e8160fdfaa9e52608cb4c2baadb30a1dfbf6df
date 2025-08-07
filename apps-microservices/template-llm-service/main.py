@@ -1,41 +1,56 @@
-import json
-from app.core.qualifier.utils import find_content_in_directory, PROMPT_TEMPLATE_FR
-from vllm import LLM, SamplingParams
+import logging
+import os
+from fastapi import FastAPI, Request, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
+from app.utils.params import params
+from app.utils.response import error_response
 
-class QualifierService:
-    def __init__(self):
-        self.llm_args = {
-            "model": "Vonreal/gemini1.5-flash",  # Gemini Flash 1.5 open source
-            "quantization": "awq",              # Quantization mode
-            "gpu_memory_utilization": 0.90,       # Utilisation GPU ajustée
-            "trust_remote_code": True,            # Autoriser le code distant
-            "max_model_len": 8192,                # Longueur max du contexte
-            "dtype": "auto"                       # Type de données automatique
-        }
-        
-        self.llm = LLM(**self.llm_args)
+description = "API Qualifier [Classification de pages fournisseurs] 🚀"
 
-    def classify(self, url: str):
-        content = find_content_in_directory("json", url)
-        if content is None:
-            return None, None, None
-        sampling_params = SamplingParams(
-            max_tokens=150,
-            temperature=0.1,
-            stop=["}"]
-        )
-        user_prompt = PROMPT_TEMPLATE_FR.format(url=url, content=content)
-        conversation = [{"role": "user", "content": user_prompt}]
-        outputs = self.llm.chat([conversation], sampling_params, use_tqdm=False)
-        raw_text = outputs[0].outputs[0].text.strip() + "}"
-        try:
-            result = json.loads(raw_text)
-        except Exception:
-            result = {
-                "type_page": "erreur_parsing",
-                "chunk": None,
-                "metadata": {"raw_output": raw_text}
-            }
-        chunk = content[:500]  # Exemple: premier chunk
-        metadata = {"url": url}
-        return result.get("type_page", "N/A"), chunk, metadata
+os.makedirs("logs", exist_ok=True)
+
+app = FastAPI(title="API Qualifier", description=description, version="v1")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    filename="logs/qualifier.log",
+    filemode="a"
+)
+
+@app.exception_handler(Exception)
+async def error_handler(request: Request, exc: Exception):
+    logging.error(str(exc))
+    return error_response("EXCEPTION_ERROR", f"{exc}", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+for item in params:
+    app.include_router(
+        item[0],
+        prefix=item[1],
+        tags=item[2],
+        include_in_schema=item[3]
+    )
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title="API Qualifier",
+        description=description,
+        version="v1",
+        routes=app.routes,
+    )
+    openapi_schema["info"]["x-logo"] = {"url": "statics/qualifier-logo.png"}
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
