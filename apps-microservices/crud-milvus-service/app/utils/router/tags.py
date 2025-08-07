@@ -2,4 +2,4 @@ from enum import Enum
 
 
 class RouterTags:
-    embedding = ["embedding"]
+    milvus = ["milvus"]

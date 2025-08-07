@@ -8,7 +8,7 @@ from app.utils.params import params
 from app.utils.response import error_response
 
 description = """
-API d'embedding [RAG Hellopro] 🚀
+API CRUD MILVUS [RAG Hellopro] 🚀
 """
 
 os.makedirs(f'{settings.DOCUMENT_ROOT}/logs', exist_ok=True)
