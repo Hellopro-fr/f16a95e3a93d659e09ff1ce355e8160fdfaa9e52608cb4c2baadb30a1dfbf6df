@@ -5,14 +5,10 @@ from typing import Annotated
 
 router = APIRouter()
 
-# Variable globale pour garder le service en cache (singleton)
+# Le système de lazy loading reste le même, il est toujours aussi pertinent.
 qualifier_service_instance: QualifierService | None = None
 
 def get_qualifier_service() -> QualifierService:
-    """
-    Dépendance FastAPI qui charge le service (et le modèle LLM) de manière différée
-    lors du premier appel, puis le met en cache pour les appels suivants.
-    """
     global qualifier_service_instance
     if qualifier_service_instance is None:
         print("--- LAZY LOADING: Initialisation du QualifierService (chargement du modèle)... ---")
@@ -22,10 +18,12 @@ def get_qualifier_service() -> QualifierService:
 
 @router.post("/", response_model=QualifyResponse)
 async def qualify(
-    request: QualifyRequest,
+    request: QualifyRequest, # Le modèle de requête a changé
     service: Annotated[QualifierService, Depends(get_qualifier_service)]
 ):
-    type_page, chunk, metadata = service.classify(request.url)
-    if type_page is None:
-        raise HTTPException(status_code=404, detail="Contenu non trouvé pour l'URL")
+    # On appelle le service avec les deux arguments
+    type_page, chunk, metadata = service.classify(url=request.url, content=request.content)
+    
+    # La vérification de contenu non trouvé n'est plus nécessaire ici
+    # car le contenu est toujours fourni.
     return QualifyResponse(type_page=type_page, chunk=chunk, metadata=metadata)

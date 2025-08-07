@@ -1,6 +1,6 @@
 import json
 from vllm import LLM, SamplingParams
-from app.core.qualifier.utils import find_content_in_directory, PROMPT_TEMPLATE_FR
+from app.core.qualifier.utils import PROMPT_TEMPLATE_FR # On garde le prompt
 
 class QualifierService:
     def __init__(self):
@@ -12,33 +12,32 @@ class QualifierService:
             "dtype": "auto"
         }
         self.llm = LLM(**self.llm_args)
-        # On récupère le tokenizer pour formater correctement les prompts de chat
         self.tokenizer = self.llm.get_tokenizer()
 
-    def classify(self, url: str):
-        content = find_content_in_directory("json", url)
-        if content is None:
-            return None, None, None
+    # La signature de la méthode change pour accepter le contenu
+    def classify(self, url: str, content: str):
+        # La recherche de fichier est supprimée !
+        if not content:
+            # On peut gérer le cas où un contenu vide est envoyé
+            return "contenu_vide", None, {"url": url}
 
         sampling_params = SamplingParams(max_tokens=150, temperature=0.1, stop=["}"])
+        
+        # Le prompt est maintenant formaté avec le contenu reçu directement
         user_prompt = PROMPT_TEMPLATE_FR.format(url=url, content=content)
         
-        # --- CORRECTION MAJEURE ICI ---
         conversation = [{"role": "user", "content": user_prompt}]
         
-        # On utilise le tokenizer pour appliquer le template de chat du modèle
         formatted_prompt = self.tokenizer.apply_chat_template(
             conversation, 
             tokenize=False, 
             add_generation_prompt=True
         )
 
-        # On appelle llm.generate() (la bonne méthode) avec le prompt formaté
         outputs = self.llm.generate([formatted_prompt], sampling_params)
         
         raw_text = outputs[0].outputs[0].text.strip()
         
-        # On s'assure que la réponse est un JSON valide
         if not raw_text.startswith('{'):
             raw_text = '{' + raw_text
         if not raw_text.endswith('}'):
