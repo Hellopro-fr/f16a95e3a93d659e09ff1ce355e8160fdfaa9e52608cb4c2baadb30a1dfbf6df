@@ -1,6 +1,6 @@
 import json
 from vllm import LLM, SamplingParams
-from app.core.qualifier.utils import PROMPT_TEMPLATE_FR # On garde le prompt
+from app.core.qualifier.utils import PROMPT_TEMPLATE_FR
 
 class QualifierService:
     def __init__(self):
@@ -14,18 +14,12 @@ class QualifierService:
         self.llm = LLM(**self.llm_args)
         self.tokenizer = self.llm.get_tokenizer()
 
-    # La signature de la méthode change pour accepter le contenu
     def classify(self, url: str, content: str):
-        # La recherche de fichier est supprimée !
         if not content:
-            # On peut gérer le cas où un contenu vide est envoyé
             return "contenu_vide", None, {"url": url}
 
         sampling_params = SamplingParams(max_tokens=150, temperature=0.1, stop=["}"])
-        
-        # Le prompt est maintenant formaté avec le contenu reçu directement
         user_prompt = PROMPT_TEMPLATE_FR.format(url=url, content=content)
-        
         conversation = [{"role": "user", "content": user_prompt}]
         
         formatted_prompt = self.tokenizer.apply_chat_template(
@@ -35,17 +29,29 @@ class QualifierService:
         )
 
         outputs = self.llm.generate([formatted_prompt], sampling_params)
-        
         raw_text = outputs[0].outputs[0].text.strip()
-        
-        if not raw_text.startswith('{'):
-            raw_text = '{' + raw_text
-        if not raw_text.endswith('}'):
-            raw_text = raw_text + "}"
 
+        # --- BLOC DE PARSING ROBUSTE ---
         try:
-            result = json.loads(raw_text)
-        except Exception:
+            # 1. Trouver la première accolade ouvrante
+            start_index = raw_text.find('{')
+            # 2. Trouver la dernière accolade fermante
+            end_index = raw_text.rfind('}')
+
+            # 3. Si les deux sont trouvées, extraire la sous-chaîne JSON
+            if start_index != -1 and end_index != -1 and end_index > start_index:
+                json_string = raw_text[start_index : end_index + 1]
+                result = json.loads(json_string)
+            else:
+                # Si on ne trouve pas un bloc JSON valide, on lève une erreur
+                raise ValueError("Bloc JSON non trouvé dans la sortie du LLM.")
+
+        except (json.JSONDecodeError, ValueError) as e:
+            # Pour le débogage, il est crucial de voir ce que le LLM a réellement renvoyé
+            print("--- ERREUR DE PARSING JSON ---")
+            print(f"Erreur: {e}")
+            print(f"Sortie brute du LLM: '{raw_text}'")
+            
             result = {
                 "type_page": "erreur_parsing",
                 "chunk": None,
