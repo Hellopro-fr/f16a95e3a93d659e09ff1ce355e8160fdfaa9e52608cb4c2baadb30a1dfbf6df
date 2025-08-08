@@ -27,10 +27,10 @@ Ta tâche est de déterminer quelle est la fonction principale de cette page pou
 En sortie, tu dois produire un objet JSON :
 Si la page correspond à un des types listés → retourne uniquement :
 json
-{ "type_page": "valeur" }
+{{ "type_page": "valeur" }}
 Si la page ne correspond à aucun type → retourne :
 json
-{ "type_page": "autre", "commentaire_si_autre": "explication en 15 mots max" }
+{{ "type_page": "autre", "commentaire_si_autre": "explication en 15 mots max" }}
 Critère clé : ne te base pas uniquement sur les balises Markdown.
 Analyse le but de la page pour l’utilisateur final : s’informer, comparer, acheter, demander un devis, découvrir une offre locale, etc.
 Voici les types de pages possibles :
@@ -57,7 +57,7 @@ Si "type_page" ≠ "autre", ne génère pas de champ "commentaire_si_autre".
 Génère seulement le JSON, sans autre texte.
 Ne pas se laisser influencer par les premières balises Markdown (ex : une page “containers à Lyon” n’est ni une fiche produit ni un article, mais une offre localisée = "offre_segment").
 Analyse le but marketing ou fonctionnel de la page.
-Voici l'url de la page : { url }
+Voici l'url de la page : {url}
 Contenu en entrée (Markdown) :
-{ content }
+{content}
 """
