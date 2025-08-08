@@ -1,6 +1,8 @@
 import json
+import re
 from vllm import LLM, SamplingParams
 from app.core.qualifier.utils import PROMPT_TEMPLATE_FR
+from bs4 import BeautifulSoup # <-- Importez BeautifulSoup
 
 class QualifierService:
     def __init__(self):
@@ -18,12 +20,27 @@ class QualifierService:
         if not content:
             return "contenu_vide", None, {"url": url}
 
-        # --- CORRECTION FINALE ICI ---
-        # On retire le stop token qui coupait la génération trop tôt
-        # et on augmente un peu les max_tokens par sécurité.
-        sampling_params = SamplingParams(max_tokens=250, temperature=0.1) # stop=["}"] a été retiré
+        # --- ÉTAPE DE NETTOYAGE DU CONTENU HTML ---
+        # 1. Parser le HTML avec BeautifulSoup
+        soup = BeautifulSoup(content, 'html.parser')
 
-        user_prompt = PROMPT_TEMPLATE_FR.format(url=url, content=content)
+        # 2. Supprimer les balises inutiles et bruyantes (scripts, styles, etc.)
+        for script_or_style in soup(["script", "style", "header", "footer", "nav", "aside"]):
+            script_or_style.decompose()
+
+        # 3. Extraire uniquement le texte propre et lisible
+        cleaned_text = soup.get_text(separator='\n', strip=True)
+        
+        # 4. Tronquer le contenu pour s'assurer qu'il n'est pas trop long (sécurité)
+        #    On garde les 15 000 premiers caractères, ce qui est largement suffisant.
+        truncated_content = cleaned_text[:15000]
+        # --- FIN DU NETTOYAGE ---
+
+        sampling_params = SamplingParams(max_tokens=250, temperature=0.1)
+
+        # On utilise le contenu nettoyé et tronqué dans le prompt
+        user_prompt = PROMPT_TEMPLATE_FR.format(url=url, content=truncated_content)
+        
         conversation = [{"role": "user", "content": user_prompt}]
         
         formatted_prompt = self.tokenizer.apply_chat_template(
@@ -35,28 +52,24 @@ class QualifierService:
         outputs = self.llm.generate([formatted_prompt], sampling_params)
         raw_text = outputs[0].outputs[0].text.strip()
 
-        # Le bloc de parsing robuste reste essentiel
+        # Le bloc de parsing robuste avec Regex reste essentiel
         try:
-            start_index = raw_text.find('{')
-            end_index = raw_text.rfind('}')
-
-            if start_index != -1 and end_index != -1 and end_index > start_index:
-                json_string = raw_text[start_index : end_index + 1]
+            match = re.search(r'\{.*\}', raw_text, re.DOTALL)
+            if match:
+                json_string = match.group(0)
                 result = json.loads(json_string)
             else:
-                raise ValueError("Bloc JSON non trouvé dans la sortie du LLM.")
-
+                raise ValueError("Aucun bloc JSON trouvé dans la sortie du LLM.")
         except (json.JSONDecodeError, ValueError) as e:
             print("--- ERREUR DE PARSING JSON ---")
             print(f"Erreur: {e}")
             print(f"Sortie brute du LLM: '{raw_text}'")
-            
             result = {
                 "type_page": "erreur_parsing",
                 "chunk": None,
                 "metadata": {"raw_output": raw_text}
             }
             
-        chunk = content[:500]
+        chunk = content[:500] # On renvoie toujours un bout du contenu original
         metadata = {"url": url}
         return result.get("type_page", "N/A"), chunk, metadata
