@@ -18,7 +18,11 @@ class QualifierService:
         if not content:
             return "contenu_vide", None, {"url": url}
 
-        sampling_params = SamplingParams(max_tokens=150, temperature=0.1, stop=["}"])
+        # --- CORRECTION FINALE ICI ---
+        # On retire le stop token qui coupait la génération trop tôt
+        # et on augmente un peu les max_tokens par sécurité.
+        sampling_params = SamplingParams(max_tokens=250, temperature=0.1) # stop=["}"] a été retiré
+
         user_prompt = PROMPT_TEMPLATE_FR.format(url=url, content=content)
         conversation = [{"role": "user", "content": user_prompt}]
         
@@ -31,23 +35,18 @@ class QualifierService:
         outputs = self.llm.generate([formatted_prompt], sampling_params)
         raw_text = outputs[0].outputs[0].text.strip()
 
-        # --- BLOC DE PARSING ROBUSTE ---
+        # Le bloc de parsing robuste reste essentiel
         try:
-            # 1. Trouver la première accolade ouvrante
             start_index = raw_text.find('{')
-            # 2. Trouver la dernière accolade fermante
             end_index = raw_text.rfind('}')
 
-            # 3. Si les deux sont trouvées, extraire la sous-chaîne JSON
             if start_index != -1 and end_index != -1 and end_index > start_index:
                 json_string = raw_text[start_index : end_index + 1]
                 result = json.loads(json_string)
             else:
-                # Si on ne trouve pas un bloc JSON valide, on lève une erreur
                 raise ValueError("Bloc JSON non trouvé dans la sortie du LLM.")
 
         except (json.JSONDecodeError, ValueError) as e:
-            # Pour le débogage, il est crucial de voir ce que le LLM a réellement renvoyé
             print("--- ERREUR DE PARSING JSON ---")
             print(f"Erreur: {e}")
             print(f"Sortie brute du LLM: '{raw_text}'")
